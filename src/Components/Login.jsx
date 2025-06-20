@@ -47,10 +47,10 @@ const Login = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
 
     setIsLoading(true);
     try {
@@ -63,9 +63,8 @@ const Login = () => {
       localStorage.setItem("token", token);
       console.log("Login successful, token stored:", token);
 
-      // Navigate immediately without delay
+      // Navigate to /home instantly
       navigate("/home", { replace: true });
-      
     } catch (error) {
       const errMsg = error.response?.data?.message || "Login failed. Please try again.";
       setErrors({ general: errMsg });

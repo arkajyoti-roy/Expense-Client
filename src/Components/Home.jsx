@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import {
   Plus,
   Trash2,
@@ -13,10 +13,15 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import BASE_URL from "./url";
+import { useNavigate } from "react-router-dom";
 const API_BASE = `${BASE_URL}`;
+// const navigate = useNavigate();
+
 
 const Home = () => {
-  // Get token from localStorage
+  // Get token from localSto
+const navigate = useNavigate();
+  // rage
   const getToken = () => localStorage.getItem("token");
 
   // Create axios instance with default config
@@ -102,7 +107,7 @@ const Home = () => {
       // Clear token regardless of API call success
       localStorage.removeItem("token");
       // Redirect to login page or refresh
-      window.location.reload();
+      navigate("/login", { replace: true });
     }
   };
 
