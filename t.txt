@@ -1,0 +1,373 @@
+import { useEffect, useState } from "react";
+import { Plus, CreditCard, Minus, RefreshCw, TrendingUp, Calendar, IndianRupee, Loader2, ArrowUpRight, ArrowDownRight } from "lucide-react";
+
+const Home = () => {
+  const [transactions, setTransactions] = useState([]);
+  const [recurring, setRecurring] = useState([]);
+  const [budget, setBudget] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [txnRes, recurRes, budgetRes] = await Promise.all([
+          fetch("http://localhost:8080/api/transactions", {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then(res => res.json()),
+          fetch("http://localhost:8080/api/recurring", {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then(res => res.json()),
+          fetch("http://localhost:8080/api/budget", {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then(res => res.json())
+        ]);
+
+        setTransactions(txnRes || []);
+        setRecurring(recurRes.recurring || []);
+        setBudget(budgetRes.openingBalance);
+      } catch (err) {
+        console.error("Fetch error:", err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [token]);
+
+  const handleAddTransaction = async (type) => {
+    const title = prompt(`Enter ${type} title:`);
+    const amount = prompt(`Enter ${type} amount:`);
+
+    if (!title || !amount) return;
+
+    const dateInput = document.createElement("input");
+    dateInput.type = "date";
+    dateInput.style.position = "absolute";
+    dateInput.style.left = "-9999px";
+    document.body.appendChild(dateInput);
+    dateInput.focus();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    dateInput.click();
+
+    dateInput.onchange = async () => {
+      const selectedDate = dateInput.value;
+      document.body.removeChild(dateInput);
+
+      if (!selectedDate) return;
+
+      try {
+        await fetch("http://localhost:8080/api/transactions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            title,
+            amount: Number(amount),
+            type,
+            date: selectedDate
+          })
+        });
+
+        alert(`${type} transaction added!`);
+        window.location.reload();
+      } catch (err) {
+        console.error("Add transaction error:", err.message);
+      }
+    };
+  };
+
+  const handleAddRecurring = async () => {
+    const title = prompt("Enter SIP/EMI title:");
+    const amount = prompt("Enter amount:");
+    const frequency = prompt('Enter frequency ("monthly" or "weekly"):');
+    const day = prompt("Enter day (e.g. 21 for monthly or 2 for Tuesday):");
+
+    const input = document.createElement("input");
+    input.type = "date";
+    input.style.position = "absolute";
+    input.style.left = "-9999px";
+    document.body.appendChild(input);
+    input.focus();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    input.click();
+
+    input.onchange = async () => {
+      const startDate = input.value;
+      document.body.removeChild(input);
+
+      if (!title || !amount || !frequency || !day || !startDate) return;
+
+      try {
+        await fetch("http://localhost:8080/api/recurring", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            title,
+            amount: Number(amount),
+            type: "debit",
+            frequency,
+            day: Number(day),
+            startDate
+          })
+        });
+
+        alert("Recurring rule added!");
+        window.location.reload();
+      } catch (err) {
+        console.error("Recurring creation error:", err.message);
+      }
+    };
+  };
+
+  const getTotalCredits = () => {
+    return transactions
+      .filter(t => t.type === 'credit')
+      .reduce((sum, t) => sum + t.amount, 0);
+  };
+
+  const getTotalDebits = () => {
+    return transactions
+      .filter(t => t.type === 'debit')
+      .reduce((sum, t) => sum + t.amount, 0);
+  };
+
+  const getBalance = () => {
+    return getTotalCredits() - getTotalDebits();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-6 max-w-sm w-full">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-indigo-200 rounded-full animate-pulse"></div>
+            <Loader2 className="absolute inset-0 m-auto h-8 w-8 animate-spin text-indigo-600" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-slate-800 mb-2">Loading Dashboard</h3>
+            <p className="text-slate-600">Please wait while we fetch your financial data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentDate = new Date();
+  const monthYear = currentDate.toLocaleDateString('en-IN', { 
+    month: 'long', 
+    year: 'numeric' 
+  });
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="py-4 sm:py-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                  👋 Welcome Back
+                </h1>
+                <p className="text-slate-600 mt-1 text-sm sm:text-base">
+                  Financial overview for {monthYear}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        {/* Budget Section */}
+        {budget !== null && (
+          <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-6 sm:p-8 text-white shadow-2xl">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="relative z-10">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-2">
+                  <h2 className="text-sm sm:text-base font-medium text-indigo-100">Monthly Budget</h2>
+                  <p className="text-3xl sm:text-4xl font-bold">₹{budget.toLocaleString('en-IN')}</p>
+                </div>
+                <div className="bg-white/20 backdrop-blur-sm p-3 sm:p-4 rounded-xl w-fit">
+                  <IndianRupee className="h-6 w-6 sm:h-8 sm:w-8" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Summary Cards */}
+        {transactions.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-slate-200/60 hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-slate-600">Total Credits</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-emerald-600">₹{getTotalCredits().toLocaleString('en-IN')}</p>
+                </div>
+                <div className="bg-emerald-100 p-3 rounded-xl">
+                  <ArrowUpRight className="h-6 w-6 text-emerald-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-slate-200/60 hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-slate-600">Total Debits</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-rose-600">₹{getTotalDebits().toLocaleString('en-IN')}</p>
+                </div>
+                <div className="bg-rose-100 p-3 rounded-xl">
+                  <ArrowDownRight className="h-6 w-6 text-rose-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-slate-200/60 hover:shadow-xl transition-all duration-300 sm:col-span-2 lg:col-span-1">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-slate-600">Net Balance</p>
+                  <p className={`text-2xl sm:text-3xl font-bold ${getBalance() >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    ₹{getBalance().toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className={`${getBalance() >= 0 ? 'bg-emerald-100' : 'bg-rose-100'} p-3 rounded-xl`}>
+                  <TrendingUp className={`h-6 w-6 ${getBalance() >= 0 ? 'text-emerald-600' : 'text-rose-600'}`} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <button
+            onClick={() => handleAddTransaction("credit")}
+            className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 sm:py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Plus className="h-5 w-5" />
+            Add Credit
+          </button>
+
+          <button
+            onClick={() => handleAddTransaction("debit")}
+            className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-6 py-3 sm:py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Minus className="h-5 w-5" />
+            Add Debit
+          </button>
+
+          <button
+            onClick={handleAddRecurring}
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 sm:py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <RefreshCw className="h-5 w-5" />
+            Add Recurring
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8">
+          {/* Recurring Transactions */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
+            <div className="p-6 border-b border-slate-200/60 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <RefreshCw className="h-5 w-5 text-blue-600" />
+                </div>
+                Upcoming SIPs/EMIs
+              </h2>
+            </div>
+            <div className="p-6">
+              {recurring.length > 0 ? (
+                <div className="space-y-4">
+                  {recurring.map((r) => (
+                    <div key={r._id} className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200/60 hover:shadow-md transition-all duration-200">
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-slate-800">{r.title}</h3>
+                        <p className="text-sm text-slate-600 flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Every {r.frequency} on day {r.day}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-rose-600 text-lg">₹{r.amount.toLocaleString('en-IN')}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="bg-slate-100 p-4 rounded-full w-fit mx-auto mb-4">
+                    <RefreshCw className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <h3 className="font-semibold text-slate-800 mb-2">No SIPs or EMIs</h3>
+                  <p className="text-slate-600 text-sm">Add recurring transactions to track them here</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Transactions */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
+            <div className="p-6 border-b border-slate-200/60 bg-gradient-to-r from-indigo-50 to-purple-50">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                <div className="bg-indigo-100 p-2 rounded-lg">
+                  <CreditCard className="h-5 w-5 text-indigo-600" />
+                </div>
+                Recent Transactions
+              </h2>
+            </div>
+            <div className="p-6 max-h-96 overflow-y-auto">
+              {transactions.length > 0 ? (
+                <div className="space-y-3">
+                  {transactions.slice(0, 8).map((txn) => (
+                    <div key={txn._id} className="flex items-center justify-between p-4 hover:bg-gradient-to-r hover:from-slate-50 hover:to-indigo-50 rounded-xl transition-all duration-200 border border-transparent hover:border-slate-200/60">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-full ${txn.type === 'credit' ? 'bg-emerald-100' : 'bg-rose-100'}`}>
+                          {txn.type === 'credit' ? 
+                            <ArrowUpRight className="h-4 w-4 text-emerald-600" /> : 
+                            <ArrowDownRight className="h-4 w-4 text-rose-600" />
+                          }
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-slate-800 truncate">{txn.title}</h3>
+                          <p className="text-sm text-slate-600 flex items-center gap-1">
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
+                            {new Date(txn.date).toLocaleDateString('en-IN')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className={`font-bold ${txn.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {txn.type === 'credit' ? '+' : '-'}₹{txn.amount.toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="bg-slate-100 p-4 rounded-full w-fit mx-auto mb-4">
+                    <CreditCard className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <h3 className="font-semibold text-slate-800 mb-2">No transactions yet</h3>
+                  <p className="text-slate-600 text-sm">Start adding transactions to see them here</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Home;
