@@ -1,4 +1,5 @@
 import { Plus, Repeat, Target, X } from "lucide-react";
+import RecentSIXTransactions from "./RecentSIXTransactions";
 
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
@@ -228,7 +229,6 @@ const ActionsAndModals = ({
       text: budget ? "Update Budget" : "Create Budget",
       className: "bg-green-600 hover:bg-green-700"
     },
-    
   ];
 
   const modals = [
@@ -325,6 +325,7 @@ const ActionsAndModals = ({
             {action.text}
           </ActionButton>
         ))}
+        <RecentSIXTransactions />
       </div>
 
       {/* Modals */}
