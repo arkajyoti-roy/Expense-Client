@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Components
-import Header from "../Header.jsx";
-import StatCards from "../StatCards";
-import ActionsAndModals from "../ActionsAndModals";
-import TablesAndOverviews from "../TablesAndOverviews";
+import Header from "./Header.jsx";
+import StatCards from "./StatCards";
+import ActionsAndModals from "./ActionsAndModals";
+import TablesAndOverviews from "./TablesAndOverviews";
 
 const Home = () => {
   const navigate = useNavigate();
