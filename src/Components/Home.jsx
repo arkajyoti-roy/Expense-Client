@@ -339,6 +339,14 @@ const Home = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Set up auto-refresh every 2 seconds
+    const intervalId = setInterval(() => {
+      fetchData();
+    }, 2000);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
   }, []);
 
   // Calculate totals
