@@ -8,7 +8,7 @@ const RecentSIXTransactions = () => {
       onClick={() => navigate("/transactions")}
       className="bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors duration-200 shadow-md hover:shadow-lg"
     >
-      View Last 6 Months Transactions
+      6 Months 
     </button>
   );
 };
