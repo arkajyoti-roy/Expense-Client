@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Components
 import Header from "./Header.jsx";
@@ -20,6 +22,18 @@ const Home = () => {
   });
   
   const [loading, setLoading] = useState(false);
+  
+  // Loading states for individual operations
+  const [operationLoading, setOperationLoading] = useState({
+    createTransaction: false,
+    updateTransaction: false,
+    deleteTransaction: false,
+    createRecurring: false,
+    updateRecurring: false,
+    deleteRecurring: false,
+    createBudget: false,
+    logout: false
+  });
   
   // Modal states - simplified to single object
   const [modals, setModals] = useState({
@@ -86,6 +100,10 @@ const Home = () => {
     setForms(prev => ({ ...prev, [formName]: defaultForms[formName] }));
   };
 
+  const setOperationLoadingState = (operation, isLoading) => {
+    setOperationLoading(prev => ({ ...prev, [operation]: isLoading }));
+  };
+
   // API operations
   const fetchData = async () => {
     try {
@@ -120,6 +138,7 @@ const Home = () => {
       setData(newData);
     } catch (error) {
       console.error("Error fetching data:", error);
+      toast.error("Failed to fetch data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -127,10 +146,14 @@ const Home = () => {
 
   const handleLogout = async () => {
     try {
+      setOperationLoadingState('logout', true);
       await makeAPICall("/api/user/logout", { method: "POST" });
+      toast.success("Logged out successfully!");
     } catch (error) {
       console.error("Error during logout:", error);
+      toast.error("Error during logout, but you'll be logged out anyway.");
     } finally {
+      setOperationLoadingState('logout', false);
       localStorage.removeItem("token");
       navigate("/login", { replace: true });
     }
@@ -139,20 +162,26 @@ const Home = () => {
   // CRUD operations
   const createTransaction = async () => {
     try {
+      setOperationLoadingState('createTransaction', true);
       await makeAPICall("/api/transactions", {
         method: "POST",
         body: JSON.stringify({ ...forms.transaction, amount: parseFloat(forms.transaction.amount) })
       });
       resetForm('transaction');
       updateModal('addTransaction', false);
-      fetchData();
+      await fetchData();
+      toast.success("Transaction created successfully!");
     } catch (error) {
       console.error("Error creating transaction:", error);
+      toast.error("Failed to create transaction. Please try again.");
+    } finally {
+      setOperationLoadingState('createTransaction', false);
     }
   };
 
   const updateTransaction = async () => {
     try {
+      setOperationLoadingState('updateTransaction', true);
       await makeAPICall(`/api/transactions/${editing.transaction._id}`, {
         method: "PUT",
         body: JSON.stringify({ ...forms.transaction, amount: parseFloat(forms.transaction.amount) })
@@ -160,14 +189,19 @@ const Home = () => {
       resetForm('transaction');
       updateModal('editTransaction', false);
       setEditing(prev => ({ ...prev, transaction: null }));
-      fetchData();
+      await fetchData();
+      toast.success("Transaction updated successfully!");
     } catch (error) {
       console.error("Error updating transaction:", error);
+      toast.error("Failed to update transaction. Please try again.");
+    } finally {
+      setOperationLoadingState('updateTransaction', false);
     }
   };
 
   const createRecurringRule = async () => {
     try {
+      setOperationLoadingState('createRecurring', true);
       const [year, month, dayStr] = forms.recurring.date.split("-");
       const payload = {
         title: forms.recurring.title,
@@ -186,14 +220,19 @@ const Home = () => {
       
       resetForm('recurring');
       updateModal('addRecurring', false);
-      fetchData();
+      await fetchData();
+      toast.success("Recurring rule created successfully!");
     } catch (error) {
       console.error("Error creating recurring rule:", error);
+      toast.error("Failed to create recurring rule. Please try again.");
+    } finally {
+      setOperationLoadingState('createRecurring', false);
     }
   };
 
   const updateRecurringRule = async () => {
     try {
+      setOperationLoadingState('updateRecurring', true);
       await makeAPICall(`/api/recurring/${editing.recurring._id}`, {
         method: "PUT",
         body: JSON.stringify({ ...forms.recurring, amount: parseFloat(forms.recurring.amount) })
@@ -202,14 +241,19 @@ const Home = () => {
       resetForm('recurring');
       updateModal('editRecurring', false);
       setEditing(prev => ({ ...prev, recurring: null }));
-      fetchData();
+      await fetchData();
+      toast.success("Recurring rule updated successfully!");
     } catch (error) {
       console.error("Error updating recurring rule:", error);
+      toast.error("Failed to update recurring rule. Please try again.");
+    } finally {
+      setOperationLoadingState('updateRecurring', false);
     }
   };
 
   const createBudget = async () => {
     try {
+      setOperationLoadingState('createBudget', true);
       await makeAPICall("/api/budget", {
         method: "POST",
         body: JSON.stringify({
@@ -220,19 +264,28 @@ const Home = () => {
       
       resetForm('budget');
       updateModal('budgetForm', false);
-      fetchData();
+      await fetchData();
+      toast.success("Budget created successfully!");
     } catch (error) {
       console.error("Error creating budget:", error);
+      toast.error("Failed to create budget. Please try again.");
+    } finally {
+      setOperationLoadingState('createBudget', false);
     }
   };
 
   const deleteTransaction = async (id) => {
     if (window.confirm("Are you sure you want to delete this transaction?")) {
       try {
+        setOperationLoadingState('deleteTransaction', true);
         await makeAPICall(`/api/transactions/${id}`, { method: "DELETE" });
-        fetchData();
+        await fetchData();
+        toast.success("Transaction deleted successfully!");
       } catch (error) {
         console.error("Error deleting transaction:", error);
+        toast.error("Failed to delete transaction. Please try again.");
+      } finally {
+        setOperationLoadingState('deleteTransaction', false);
       }
     }
   };
@@ -240,10 +293,15 @@ const Home = () => {
   const deleteRecurringRule = async (id) => {
     if (window.confirm("Are you sure you want to delete this recurring rule?")) {
       try {
+        setOperationLoadingState('deleteRecurring', true);
         await makeAPICall(`/api/recurring/${id}`, { method: "DELETE" });
-        fetchData();
+        await fetchData();
+        toast.success("Recurring rule deleted successfully!");
       } catch (error) {
         console.error("Error deleting recurring rule:", error);
+        toast.error("Failed to delete recurring rule. Please try again.");
+      } finally {
+        setOperationLoadingState('deleteRecurring', false);
       }
     }
   };
@@ -295,7 +353,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header onLogout={handleLogout} />
+      <Header onLogout={handleLogout} logoutLoading={operationLoading.logout} />
 
       <div className="max-w-7xl mx-auto p-6">
         <StatCards
@@ -326,6 +384,8 @@ const Home = () => {
           updateRecurringRule={updateRecurringRule}
           createBudget={createBudget}
           cancelEdit={cancelEdit}
+          // Pass loading states
+          loadingStates={operationLoading}
         />
 
         <TablesAndOverviews
@@ -337,8 +397,24 @@ const Home = () => {
           deleteTransaction={deleteTransaction}
           openEditRecurring={openEditRecurring}
           deleteRecurringRule={deleteRecurringRule}
+          // Pass loading states
+          loadingStates={operationLoading}
         />
       </div>
+
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </div>
   );
 };
