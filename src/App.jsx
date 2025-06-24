@@ -7,6 +7,8 @@ import {
 } from "react-router-dom";
 import Home from "./Components/Home";
 import Login from "./Components/Login";
+import RecentSIXTransactions from "./Components/RecentSIXTransactions";
+import SIXTransactionTable from "./Components/SIXTransactionTable";
 import { useState, useEffect } from "react";
 
 function App() {
@@ -48,6 +50,9 @@ function App() {
         />
 
         <Route path="/login" element={<Login />} />
+
+        <Route path="/transactions/trigger" element={<RecentSIXTransactions />} />
+        <Route path="/transactions" element={<SIXTransactionTable />} />
         {/* Default redirect */}
       </Routes>
     </Router>

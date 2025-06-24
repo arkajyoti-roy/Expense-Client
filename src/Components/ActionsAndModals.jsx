@@ -227,7 +227,8 @@ const ActionsAndModals = ({
       icon: Target,
       text: budget ? "Update Budget" : "Create Budget",
       className: "bg-green-600 hover:bg-green-700"
-    }
+    },
+    
   ];
 
   const modals = [
