@@ -7,14 +7,36 @@ import {
 } from "react-router-dom";
 import Home from "./Components/pages/Home";
 import Login from "./Components/Login";
+import { useState, useEffect } from "react";
 
 function App() {
-  const token = localStorage.getItem("token");
+  const [token, setToken] = useState(localStorage.getItem("token"));
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setToken(localStorage.getItem("token"));
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  // Also update token when it changes in the same tab (after login)
+  useEffect(() => {
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function (key, value) {
+      originalSetItem.apply(this, arguments);
+      if (key === "token") {
+        setToken(value);
+      }
+    };
+    return () => {
+      localStorage.setItem = originalSetItem;
+    };
+  }, []);
 
   return (
     <Router>
       <Routes>
-
         <Route
           path="/"
           element={<Navigate to={token ? "/home" : "/login"} replace />}

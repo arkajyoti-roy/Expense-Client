@@ -64,13 +64,15 @@ const Login = () => {
       console.log("Login successful, token stored:", token);
 
       // Navigate to /home instantly
-      navigate("/home", { replace: true });
+      navigate("/");
     } catch (error) {
       const errMsg = error.response?.data?.message || "Login failed. Please try again.";
       setErrors({ general: errMsg });
       console.error("Login error:", errMsg);
     } finally {
       setIsLoading(false);
+      navigate("/");
+
     }
   };
 
