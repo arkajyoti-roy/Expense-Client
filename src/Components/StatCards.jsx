@@ -1,4 +1,3 @@
-// import React from "react";
 import { TrendingUp, DollarSign, Target } from "lucide-react";
 
 const StatCard = ({ icon: Icon, title, value, color = "blue" }) => (

@@ -1,4 +1,3 @@
-import React from "react";
 import { Plus, Repeat, Target, X } from "lucide-react";
 
 const Modal = ({ isOpen, onClose, title, children }) => {
@@ -9,15 +8,180 @@ const Modal = ({ isOpen, onClose, title, children }) => {
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="flex justify-between items-center p-6 border-b">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X size={20} />
           </button>
         </div>
         <div className="p-6">{children}</div>
       </div>
+    </div>
+  );
+};
+
+const FormField = ({ type, placeholder, value, onChange, className = "", options = null }) => {
+  const baseClass = `border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${className}`;
+  
+  if (type === "select") {
+    return (
+      <select value={value} onChange={onChange} className={baseClass}>
+        {options.map(({ value: optValue, label }) => (
+          <option key={optValue} value={optValue}>{label}</option>
+        ))}
+      </select>
+    );
+  }
+  
+  return (
+    <input
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      className={baseClass}
+    />
+  );
+};
+
+const ActionButton = ({ onClick, icon: Icon, children, className }) => (
+  <button
+    onClick={onClick}
+    className={`px-6 py-3 rounded-lg flex items-center gap-2 shadow-md transition-colors text-white ${className}`}
+  >
+    <Icon size={20} />
+    {children}
+  </button>
+);
+
+const ModalButtons = ({ onSave, onCancel, saveText, saveClassName }) => (
+  <div className="flex gap-3 pt-4">
+    <button
+      onClick={onSave}
+      className={`flex-1 px-4 py-2 rounded-lg transition-colors text-white ${saveClassName}`}
+    >
+      {saveText}
+    </button>
+    <button
+      onClick={onCancel}
+      className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition-colors"
+    >
+      Cancel
+    </button>
+  </div>
+);
+
+const TransactionForm = ({ form, onChange, onSave, onCancel, isEdit = false }) => {
+  const typeOptions = [
+    { value: "debit", label: "Expense (Debit)" },
+    { value: "credit", label: "Income (Credit)" }
+  ];
+
+  const handleChange = (field) => (e) => onChange({ ...form, [field]: e.target.value });
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <FormField
+          type={isEdit ? "number" : "text"}
+          placeholder="Amount"
+          value={form.amount}
+          onChange={handleChange("amount")}
+          className="focus:ring-blue-500"
+        />
+        <FormField
+          type="select"
+          value={form.type}
+          onChange={handleChange("type")}
+          className="focus:ring-blue-500"
+          options={typeOptions}
+        />
+      </div>
+      
+      <FormField
+        type="text"
+        placeholder="Description"
+        value={form.description}
+        onChange={handleChange("description")}
+        className="w-full focus:ring-blue-500"
+      />
+      
+      <FormField
+        type="date"
+        value={form.date}
+        onChange={handleChange("date")}
+        className="w-full focus:ring-blue-500"
+      />
+      
+      <ModalButtons
+        onSave={onSave}
+        onCancel={onCancel}
+        saveText={isEdit ? "Update Transaction" : "Save Transaction"}
+        saveClassName={isEdit ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"}
+      />
+    </div>
+  );
+};
+
+const RecurringForm = ({ form, onChange, onSave, onCancel, isEdit = false }) => {
+  const typeOptions = [
+    { value: "debit", label: "Expense (Debit)" },
+    { value: "credit", label: "Income (Credit)" }
+  ];
+  
+  const frequencyOptions = [
+    { value: "weekly", label: "Weekly" },
+    { value: "monthly", label: "Monthly" }
+  ];
+
+  const handleChange = (field) => (e) => onChange({ ...form, [field]: e.target.value });
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <FormField
+          type="number"
+          placeholder="Amount"
+          value={form.amount}
+          onChange={handleChange("amount")}
+          className="focus:ring-purple-500"
+        />
+        <FormField
+          type="select"
+          value={form.type}
+          onChange={handleChange("type")}
+          className="focus:ring-purple-500"
+          options={typeOptions}
+        />
+      </div>
+      
+      <FormField
+        type="text"
+        placeholder={isEdit ? "Description" : "Title"}
+        value={isEdit ? form.description : form.title}
+        onChange={isEdit ? handleChange("description") : handleChange("title")}
+        className="w-full focus:ring-purple-500"
+      />
+      
+      <FormField
+        type="date"
+        value={form.date}
+        onChange={handleChange("date")}
+        className="w-full focus:ring-purple-500"
+      />
+      
+      <FormField
+        type="select"
+        value={form.frequency}
+        onChange={handleChange("frequency")}
+        className="w-full focus:ring-purple-500"
+        options={frequencyOptions}
+      />
+      
+      <ModalButtons
+        onSave={onSave}
+        onCancel={onCancel}
+        saveText={isEdit ? "Update Rule" : "Save Rule"}
+        saveClassName="bg-purple-600 hover:bg-purple-700"
+      />
     </div>
   );
 };
@@ -45,366 +209,129 @@ const ActionsAndModals = ({
   createBudget,
   cancelEdit,
 }) => {
+  const actions = [
+    {
+      onClick: () => setShowAddTransaction(true),
+      icon: Plus,
+      text: "Add Transaction",
+      className: "bg-blue-600 hover:bg-blue-700"
+    },
+    {
+      onClick: () => setShowAddRecurring(true),
+      icon: Repeat,
+      text: "Add Recurring Rule",
+      className: "bg-purple-600 hover:bg-purple-700"
+    },
+    {
+      onClick: () => setShowBudgetForm(true),
+      icon: Target,
+      text: budget ? "Update Budget" : "Create Budget",
+      className: "bg-green-600 hover:bg-green-700"
+    }
+  ];
+
+  const modals = [
+    {
+      isOpen: showAddTransaction,
+      onClose: () => setShowAddTransaction(false),
+      title: "Add New Transaction",
+      content: (
+        <TransactionForm
+          form={transactionForm}
+          onChange={setTransactionForm}
+          onSave={createTransaction}
+          onCancel={() => setShowAddTransaction(false)}
+        />
+      )
+    },
+    {
+      isOpen: showEditTransaction,
+      onClose: cancelEdit,
+      title: "Edit Transaction",
+      content: (
+        <TransactionForm
+          form={transactionForm}
+          onChange={setTransactionForm}
+          onSave={updateTransaction}
+          onCancel={cancelEdit}
+          isEdit={true}
+        />
+      )
+    },
+    {
+      isOpen: showAddRecurring,
+      onClose: () => setShowAddRecurring(false),
+      title: "Add New Recurring Rule",
+      content: (
+        <RecurringForm
+          form={recurringForm}
+          onChange={setRecurringForm}
+          onSave={createRecurringRule}
+          onCancel={() => setShowAddRecurring(false)}
+        />
+      )
+    },
+    {
+      isOpen: showEditRecurring,
+      onClose: cancelEdit,
+      title: "Edit Recurring Rule",
+      content: (
+        <RecurringForm
+          form={recurringForm}
+          onChange={setRecurringForm}
+          onSave={updateRecurringRule}
+          onCancel={cancelEdit}
+          isEdit={true}
+        />
+      )
+    },
+    {
+      isOpen: showBudgetForm,
+      onClose: () => setShowBudgetForm(false),
+      title: budget ? "Update Budget" : "Create New Budget",
+      content: (
+        <div className="space-y-4">
+          <FormField
+            type="month"
+            value={budgetForm.month}
+            onChange={(e) => setBudgetForm({ ...budgetForm, month: e.target.value })}
+            className="w-full focus:ring-green-500"
+          />
+          <FormField
+            type="number"
+            placeholder="Opening Balance"
+            value={budgetForm.openingBalance}
+            onChange={(e) => setBudgetForm({ ...budgetForm, openingBalance: e.target.value })}
+            className="w-full focus:ring-green-500"
+          />
+          <ModalButtons
+            onSave={createBudget}
+            onCancel={() => setShowBudgetForm(false)}
+            saveText="Save Budget"
+            saveClassName="bg-green-600 hover:bg-green-700"
+          />
+        </div>
+      )
+    }
+  ];
+
   return (
     <>
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-4 mb-8">
-        <button
-          onClick={() => setShowAddTransaction(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 shadow-md transition-colors"
-        >
-          <Plus size={20} />
-          Add Transaction
-        </button>
-        <button
-          onClick={() => setShowAddRecurring(true)}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 shadow-md transition-colors"
-        >
-          <Repeat size={20} />
-          Add Recurring Rule
-        </button>
-        <button
-          onClick={() => setShowBudgetForm(true)}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 shadow-md transition-colors"
-        >
-          <Target size={20} />
-          {budget ? "Update Budget" : "Create Budget"}
-        </button>
+        {actions.map((action, index) => (
+          <ActionButton key={index} {...action}>
+            {action.text}
+          </ActionButton>
+        ))}
       </div>
 
-      {/* Add Transaction Modal */}
-      <Modal
-        isOpen={showAddTransaction}
-        onClose={() => setShowAddTransaction(false)}
-        title="Add New Transaction"
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              type="text"
-              name="amount"
-              placeholder="Amount"
-              value={transactionForm.amount}
-              onChange={(e) =>
-                setTransactionForm({
-                  ...transactionForm,
-                  amount: e.target.value,
-                })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              name="type"
-              value={transactionForm.type}
-              onChange={(e) =>
-                setTransactionForm({ ...transactionForm, type: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="debit">Expense (Debit)</option>
-              <option value="credit">Income (Credit)</option>
-            </select>
-          </div>
-
-          <input
-            type="text"
-            name="description"
-            placeholder="Description"
-            value={transactionForm.description}
-            onChange={(e) =>
-              setTransactionForm({
-                ...transactionForm,
-                description: e.target.value,
-              })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
-          <input
-            type="date"
-            name="date"
-            value={transactionForm.date}
-            onChange={(e) =>
-              setTransactionForm({ ...transactionForm, date: e.target.value })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={createTransaction}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              Save Transaction
-            </button>
-            <button
-              onClick={() => setShowAddTransaction(false)}
-              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Edit Transaction Modal */}
-      <Modal
-        isOpen={showEditTransaction}
-        onClose={cancelEdit}
-        title="Edit Transaction"
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              type="number"
-              placeholder="Amount"
-              value={transactionForm.amount}
-              onChange={(e) =>
-                setTransactionForm({
-                  ...transactionForm,
-                  amount: e.target.value,
-                })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              value={transactionForm.type}
-              onChange={(e) =>
-                setTransactionForm({ ...transactionForm, type: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="debit">Expense (Debit)</option>
-              <option value="credit">Income (Credit)</option>
-            </select>
-          </div>
-          <input
-            type="text"
-            placeholder="Description"
-            value={transactionForm.description}
-            onChange={(e) =>
-              setTransactionForm({
-                ...transactionForm,
-                description: e.target.value,
-              })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="date"
-            value={transactionForm.date}
-            onChange={(e) =>
-              setTransactionForm({ ...transactionForm, date: e.target.value })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={updateTransaction}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              Update Transaction
-            </button>
-            <button
-              onClick={cancelEdit}
-              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Add Recurring Modal */}
-      <Modal
-        isOpen={showAddRecurring}
-        onClose={() => setShowAddRecurring(false)}
-        title="Add New Recurring Rule"
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              type="number"
-              placeholder="Amount"
-              value={recurringForm.amount}
-              onChange={(e) =>
-                setRecurringForm({ ...recurringForm, amount: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-            <select
-              value={recurringForm.type}
-              onChange={(e) =>
-                setRecurringForm({ ...recurringForm, type: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="debit">Expense (Debit)</option>
-              <option value="credit">Income (Credit)</option>
-            </select>
-          </div>
-          <input
-            type="text"
-            placeholder="Title"
-            value={recurringForm.title}
-            onChange={(e) =>
-              setRecurringForm({
-                ...recurringForm,
-                title: e.target.value,
-              })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <input
-            type="date"
-            value={recurringForm.date}
-            onChange={(e) =>
-              setRecurringForm({ ...recurringForm, date: e.target.value })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <select
-            value={recurringForm.frequency}
-            onChange={(e) =>
-              setRecurringForm({ ...recurringForm, frequency: e.target.value })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={createRecurringRule}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              Save Rule
-            </button>
-            <button
-              onClick={() => setShowAddRecurring(false)}
-              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Edit Recurring Modal */}
-      <Modal
-        isOpen={showEditRecurring}
-        onClose={cancelEdit}
-        title="Edit Recurring Rule"
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              type="number"
-              placeholder="Amount"
-              value={recurringForm.amount}
-              onChange={(e) =>
-                setRecurringForm({ ...recurringForm, amount: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-            <select
-              value={recurringForm.type}
-              onChange={(e) =>
-                setRecurringForm({ ...recurringForm, type: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="debit">Expense (Debit)</option>
-              <option value="credit">Income (Credit)</option>
-            </select>
-          </div>
-          <input
-            type="text"
-            placeholder="Description"
-            value={recurringForm.description}
-            onChange={(e) =>
-              setRecurringForm({
-                ...recurringForm,
-                description: e.target.value,
-              })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <input
-            type="date"
-            value={recurringForm.date}
-            onChange={(e) =>
-              setRecurringForm({ ...recurringForm, date: e.target.value })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <select
-            value={recurringForm.frequency}
-            onChange={(e) =>
-              setRecurringForm({ ...recurringForm, frequency: e.target.value })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={updateRecurringRule}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              Update Rule
-            </button>
-            <button
-              onClick={cancelEdit}
-              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Budget Modal */}
-      <Modal
-        isOpen={showBudgetForm}
-        onClose={() => setShowBudgetForm(false)}
-        title={budget ? "Update Budget" : "Create New Budget"}
-      >
-        <div className="space-y-4">
-          <input
-            type="month"
-            value={budgetForm.month}
-            onChange={(e) =>
-              setBudgetForm({ ...budgetForm, month: e.target.value })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-          <input
-            type="number"
-            placeholder="Opening Balance"
-            value={budgetForm.openingBalance}
-            onChange={(e) =>
-              setBudgetForm({ ...budgetForm, openingBalance: e.target.value })
-            }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={createBudget}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              Save Budget
-            </button>
-            <button
-              onClick={() => setShowBudgetForm(false)}
-              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* Modals */}
+      {modals.map((modal, index) => (
+        <Modal key={index} {...modal}>
+          {modal.content}
+        </Modal>
+      ))}
     </>
   );
 };

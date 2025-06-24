@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Components
@@ -9,83 +9,122 @@ import TablesAndOverviews from "../TablesAndOverviews";
 
 const Home = () => {
   const navigate = useNavigate();
-  
-  // API base URL
   const API_BASE_URL = "https://expense-server-neoq.onrender.com";
 
-  // Helper function to make API calls with authentication
+  // Consolidated state
+  const [data, setData] = useState({
+    transactions: [],
+    recurringRules: [],
+    budget: null,
+    budgetStats: { openingBalance: 0, totalCredit: 0, totalDebit: 0, netBalance: 0 }
+  });
+  
+  const [loading, setLoading] = useState(false);
+  
+  // Modal states - simplified to single object
+  const [modals, setModals] = useState({
+    addTransaction: false,
+    addRecurring: false,
+    budgetForm: false,
+    editTransaction: false,
+    editRecurring: false
+  });
+
+  // Editing states
+  const [editing, setEditing] = useState({
+    transaction: null,
+    recurring: null
+  });
+
+  // Form states with default values
+  const defaultForms = {
+    transaction: {
+      amount: "",
+      description: "",
+      date: new Date().toISOString().slice(0, 10),
+      type: "debit"
+    },
+    recurring: {
+      amount: "",
+      title: "",
+      date: new Date().toISOString().slice(0, 10),
+      type: "debit",
+      frequency: "monthly"
+    },
+    budget: {
+      month: new Date().toISOString().slice(0, 7),
+      openingBalance: ""
+    }
+  };
+
+  const [forms, setForms] = useState(defaultForms);
+
+  // Helper functions
   const makeAPICall = async (endpoint, options = {}) => {
     const token = localStorage.getItem("token");
-    const url = `${API_BASE_URL}${endpoint}`;
-    
-    const defaultOptions = {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
         "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
+        ...(token && { Authorization: `Bearer ${token}` })
       },
-    };
-
-    const mergedOptions = {
-      ...defaultOptions,
-      ...options,
-      headers: {
-        ...defaultOptions.headers,
-        ...options.headers,
-      },
-    };
-
-    const response = await fetch(url, mergedOptions);
+      ...options
+    });
     
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     return response.json();
   };
 
-  // State
-  const [transactions, setTransactions] = useState([]);
-  const [recurringRules, setRecurringRules] = useState([]);
-  const [budget, setBudget] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [budgetStats, setBudgetStats] = useState({
-    openingBalance: 0,
-    totalCredit: 0,
-    totalDebit: 0,
-    netBalance: 0,
-  });
+  const updateModal = (modalName, value) => {
+    setModals(prev => ({ ...prev, [modalName]: value }));
+  };
 
-  // Modal states
-  const [showAddTransaction, setShowAddTransaction] = useState(false);
-  const [showAddRecurring, setShowAddRecurring] = useState(false);
-  const [showBudgetForm, setShowBudgetForm] = useState(false);
-  const [showEditTransaction, setShowEditTransaction] = useState(false);
-  const [showEditRecurring, setShowEditRecurring] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState(null);
-  const [editingRecurring, setEditingRecurring] = useState(null);
+  const updateForm = (formName, updates) => {
+    setForms(prev => ({ ...prev, [formName]: { ...prev[formName], ...updates } }));
+  };
 
-  // Form states
-  const [transactionForm, setTransactionForm] = useState({
-    amount: "",
-    description: "",
-    date: new Date().toISOString().slice(0, 10),
-    type: "debit",
-  });
+  const resetForm = (formName) => {
+    setForms(prev => ({ ...prev, [formName]: defaultForms[formName] }));
+  };
 
-  const [recurringForm, setRecurringForm] = useState({
-    amount: "",
-    title: "",
-    date: new Date().toISOString().slice(0, 10),
-    type: "debit",
-    frequency: "monthly",
-  });
+  // API operations
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [transactionsRes, recurringRes, budgetRes] = await Promise.allSettled([
+        makeAPICall("/api/transactions"),
+        makeAPICall("/api/recurring"),
+        makeAPICall("/api/budget")
+      ]);
 
-  const [budgetForm, setBudgetForm] = useState({
-    month: new Date().toISOString().slice(0, 7),
-    openingBalance: "",
-  });
+      const newData = { ...data };
 
-  // Logout function
+      // Handle transactions
+      if (transactionsRes.status === 'fulfilled') {
+        const { transactions = [], openingBalance = 0, totalCredit = 0, totalDebit = 0, netBalance = 0 } = transactionsRes.value;
+        newData.transactions = transactions;
+        newData.budgetStats = { openingBalance, totalCredit, totalDebit, netBalance };
+      }
+
+      // Handle recurring rules
+      if (recurringRes.status === 'fulfilled') {
+        const response = recurringRes.value;
+        newData.recurringRules = Array.isArray(response.recurring) ? response.recurring : 
+                                 Array.isArray(response) ? response : [];
+      }
+
+      // Handle budget
+      if (budgetRes.status === 'fulfilled') {
+        newData.budget = budgetRes.value;
+      }
+
+      setData(newData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await makeAPICall("/api/user/logout", { method: "POST" });
@@ -97,83 +136,16 @@ const Home = () => {
     }
   };
 
-  // API calls
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true);
-      const response = await makeAPICall("/api/transactions");
-
-      const {
-        transactions = [],
-        openingBalance = 0,
-        totalCredit = 0,
-        totalDebit = 0,
-        netBalance = 0,
-      } = response;
-
-      setTransactions(transactions);
-      setBudgetStats({ openingBalance, totalCredit, totalDebit, netBalance });
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
-      setTransactions([]);
-      setBudgetStats({
-        openingBalance: 0,
-        totalCredit: 0,
-        totalDebit: 0,
-        netBalance: 0,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRecurringRules = async () => {
-    try {
-      const response = await makeAPICall("/api/recurring");
-      
-      const data = Array.isArray(response.recurring)
-        ? response.recurring
-        : Array.isArray(response)
-        ? response
-        : [];
-
-      setRecurringRules(data);
-    } catch (error) {
-      console.error("Error fetching recurring rules:", error);
-      setRecurringRules([]);
-    }
-  };
-
-  const fetchBudget = async () => {
-    try {
-      const response = await makeAPICall("/api/budget");
-      setBudget(response);
-    } catch (error) {
-      console.error("Error fetching budget:", error);
-      setBudget(null);
-    }
-  };
-
+  // CRUD operations
   const createTransaction = async () => {
     try {
-      const payload = {
-        ...transactionForm,
-        amount: parseFloat(transactionForm.amount),
-      };
-      
       await makeAPICall("/api/transactions", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...forms.transaction, amount: parseFloat(forms.transaction.amount) })
       });
-      
-      setTransactionForm({
-        amount: "",
-        description: "",
-        date: new Date().toISOString().slice(0, 10),
-        type: "debit",
-      });
-      setShowAddTransaction(false);
-      fetchTransactions();
+      resetForm('transaction');
+      updateModal('addTransaction', false);
+      fetchData();
     } catch (error) {
       console.error("Error creating transaction:", error);
     }
@@ -181,25 +153,14 @@ const Home = () => {
 
   const updateTransaction = async () => {
     try {
-      const payload = {
-        ...transactionForm,
-        amount: parseFloat(transactionForm.amount),
-      };
-      
-      await makeAPICall(`/api/transactions/${editingTransaction._id}`, {
+      await makeAPICall(`/api/transactions/${editing.transaction._id}`, {
         method: "PUT",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...forms.transaction, amount: parseFloat(forms.transaction.amount) })
       });
-
-      setTransactionForm({
-        amount: "",
-        description: "",
-        date: new Date().toISOString().slice(0, 10),
-        type: "debit",
-      });
-      setShowEditTransaction(false);
-      setEditingTransaction(null);
-      fetchTransactions();
+      resetForm('transaction');
+      updateModal('editTransaction', false);
+      setEditing(prev => ({ ...prev, transaction: null }));
+      fetchData();
     } catch (error) {
       console.error("Error updating transaction:", error);
     }
@@ -207,34 +168,25 @@ const Home = () => {
 
   const createRecurringRule = async () => {
     try {
-      const [year, month, dayStr] = recurringForm.date.split("-");
-      const day = parseInt(dayStr);
-
+      const [year, month, dayStr] = forms.recurring.date.split("-");
       const payload = {
-        title: recurringForm.title,
-        amount: parseFloat(recurringForm.amount),
-        type: recurringForm.type,
-        frequency: recurringForm.frequency,
-        day,
-        startDate: recurringForm.date,
-        endDate: null,
+        title: forms.recurring.title,
+        amount: parseFloat(forms.recurring.amount),
+        type: forms.recurring.type,
+        frequency: forms.recurring.frequency,
+        day: parseInt(dayStr),
+        startDate: forms.recurring.date,
+        endDate: null
       };
 
       await makeAPICall("/api/recurring", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
-
-      setRecurringForm({
-        amount: "",
-        title: "",
-        date: new Date().toISOString().slice(0, 10),
-        type: "debit",
-        frequency: "monthly",
-      });
-
-      setShowAddRecurring(false);
-      fetchRecurringRules();
+      
+      resetForm('recurring');
+      updateModal('addRecurring', false);
+      fetchData();
     } catch (error) {
       console.error("Error creating recurring rule:", error);
     }
@@ -242,26 +194,15 @@ const Home = () => {
 
   const updateRecurringRule = async () => {
     try {
-      const payload = {
-        ...recurringForm,
-        amount: parseFloat(recurringForm.amount),
-      };
-      
-      await makeAPICall(`/api/recurring/${editingRecurring._id}`, {
+      await makeAPICall(`/api/recurring/${editing.recurring._id}`, {
         method: "PUT",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...forms.recurring, amount: parseFloat(forms.recurring.amount) })
       });
-
-      setRecurringForm({
-        amount: "",
-        title: "",
-        date: new Date().toISOString().slice(0, 10),
-        type: "debit",
-        frequency: "monthly",
-      });
-      setShowEditRecurring(false);
-      setEditingRecurring(null);
-      fetchRecurringRules();
+      
+      resetForm('recurring');
+      updateModal('editRecurring', false);
+      setEditing(prev => ({ ...prev, recurring: null }));
+      fetchData();
     } catch (error) {
       console.error("Error updating recurring rule:", error);
     }
@@ -269,22 +210,17 @@ const Home = () => {
 
   const createBudget = async () => {
     try {
-      const payload = {
-        month: budgetForm.month,
-        openingBalance: parseFloat(budgetForm.openingBalance),
-      };
-      
       await makeAPICall("/api/budget", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          month: forms.budget.month,
+          openingBalance: parseFloat(forms.budget.openingBalance)
+        })
       });
       
-      setBudgetForm({
-        month: new Date().toISOString().slice(0, 7),
-        openingBalance: "",
-      });
-      setShowBudgetForm(false);
-      fetchBudget();
+      resetForm('budget');
+      updateModal('budgetForm', false);
+      fetchData();
     } catch (error) {
       console.error("Error creating budget:", error);
     }
@@ -294,7 +230,7 @@ const Home = () => {
     if (window.confirm("Are you sure you want to delete this transaction?")) {
       try {
         await makeAPICall(`/api/transactions/${id}`, { method: "DELETE" });
-        fetchTransactions();
+        fetchData();
       } catch (error) {
         console.error("Error deleting transaction:", error);
       }
@@ -302,76 +238,60 @@ const Home = () => {
   };
 
   const deleteRecurringRule = async (id) => {
-    if (
-      window.confirm("Are you sure you want to delete this recurring rule?")
-    ) {
+    if (window.confirm("Are you sure you want to delete this recurring rule?")) {
       try {
         await makeAPICall(`/api/recurring/${id}`, { method: "DELETE" });
-        fetchRecurringRules();
+        fetchData();
       } catch (error) {
         console.error("Error deleting recurring rule:", error);
       }
     }
   };
 
+  // Edit handlers
   const openEditTransaction = (transaction) => {
-    setEditingTransaction(transaction);
-    setTransactionForm({
+    setEditing(prev => ({ ...prev, transaction }));
+    updateForm('transaction', {
       amount: transaction.amount.toString(),
       description: transaction.description,
       date: transaction.date,
-      type: transaction.type,
+      type: transaction.type
     });
-    setShowEditTransaction(true);
+    updateModal('editTransaction', true);
   };
 
   const openEditRecurring = (rule) => {
-    setEditingRecurring(rule);
-    setRecurringForm({
+    setEditing(prev => ({ ...prev, recurring: rule }));
+    updateForm('recurring', {
       amount: rule.amount.toString(),
       title: rule.title,
       date: rule.date,
       type: rule.type,
-      frequency: rule.frequency,
+      frequency: rule.frequency
     });
-    setShowEditRecurring(true);
+    updateModal('editRecurring', true);
   };
 
   const cancelEdit = () => {
-    setShowEditTransaction(false);
-    setShowEditRecurring(false);
-    setEditingTransaction(null);
-    setEditingRecurring(null);
-    setTransactionForm({
-      amount: "",
-      description: "",
-      date: new Date().toISOString().slice(0, 10),
-      type: "debit",
-    });
-    setRecurringForm({
-      amount: "",
-      title: "",
-      date: new Date().toISOString().slice(0, 10),
-      type: "debit",
-      frequency: "monthly",
-    });
+    setModals(prev => ({ ...prev, editTransaction: false, editRecurring: false }));
+    setEditing({ transaction: null, recurring: null });
+    resetForm('transaction');
+    resetForm('recurring');
   };
 
   useEffect(() => {
-    fetchTransactions();
-    fetchRecurringRules();
-    fetchBudget();
+    fetchData();
   }, []);
 
   // Calculate totals
-  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+  const safeTransactions = Array.isArray(data.transactions) ? data.transactions : [];
   const totalIncome = safeTransactions
-    .filter((t) => t.type === "credit")
+    .filter(t => t.type === "credit")
     .reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalExpenses = safeTransactions
-    .filter((t) => t.type === "debit")
+    .filter(t => t.type === "debit")
     .reduce((sum, t) => sum + (t.amount || 0), 0);
-  const balance = budgetStats.netBalance || 0;
+  const balance = data.budgetStats.netBalance || 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -385,21 +305,21 @@ const Home = () => {
         />
 
         <ActionsAndModals
-          budget={budget}
-          showAddTransaction={showAddTransaction}
-          setShowAddTransaction={setShowAddTransaction}
-          showAddRecurring={showAddRecurring}
-          setShowAddRecurring={setShowAddRecurring}
-          showBudgetForm={showBudgetForm}
-          setShowBudgetForm={setShowBudgetForm}
-          showEditTransaction={showEditTransaction}
-          showEditRecurring={showEditRecurring}
-          transactionForm={transactionForm}
-          setTransactionForm={setTransactionForm}
-          recurringForm={recurringForm}
-          setRecurringForm={setRecurringForm}
-          budgetForm={budgetForm}
-          setBudgetForm={setBudgetForm}
+          budget={data.budget}
+          showAddTransaction={modals.addTransaction}
+          setShowAddTransaction={(value) => updateModal('addTransaction', value)}
+          showAddRecurring={modals.addRecurring}
+          setShowAddRecurring={(value) => updateModal('addRecurring', value)}
+          showBudgetForm={modals.budgetForm}
+          setShowBudgetForm={(value) => updateModal('budgetForm', value)}
+          showEditTransaction={modals.editTransaction}
+          showEditRecurring={modals.editRecurring}
+          transactionForm={forms.transaction}
+          setTransactionForm={(updates) => updateForm('transaction', updates)}
+          recurringForm={forms.recurring}
+          setRecurringForm={(updates) => updateForm('recurring', updates)}
+          budgetForm={forms.budget}
+          setBudgetForm={(updates) => updateForm('budget', updates)}
           createTransaction={createTransaction}
           updateTransaction={updateTransaction}
           createRecurringRule={createRecurringRule}
@@ -409,9 +329,9 @@ const Home = () => {
         />
 
         <TablesAndOverviews
-          transactions={transactions}
-          recurringRules={recurringRules}
-          budget={budget}
+          transactions={data.transactions}
+          recurringRules={data.recurringRules}
+          budget={data.budget}
           balance={balance}
           openEditTransaction={openEditTransaction}
           deleteTransaction={deleteTransaction}
