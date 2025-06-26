@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
+import BASE_URL from "./url.js";
 // Components
 import Header from "./Header.jsx";
 import StatCards from "./StatCards";
@@ -11,7 +11,7 @@ import TablesAndOverviews from "./TablesAndOverviews";
 
 const Home = () => {
   const navigate = useNavigate();
-  const API_BASE_URL = "https://expense-server-neoq.onrender.com";
+  const API_BASE_URL = BASE_URL;
 
   // Consolidated state
   const [data, setData] = useState({
